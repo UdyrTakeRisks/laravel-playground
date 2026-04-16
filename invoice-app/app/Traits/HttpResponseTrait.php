@@ -19,6 +19,12 @@ trait HttpResponseTrait
 
         return response()->json($response, $status);
     }
+    protected function noContent($message, $status = ResponseAlias::HTTP_NO_CONTENT): Response
+    {
+        return response([
+            'message' => $message,
+        ], $status);
+    }
     protected function created($message, $data = [], $status = ResponseAlias::HTTP_CREATED): Response
     {
         $response = [
