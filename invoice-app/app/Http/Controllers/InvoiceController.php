@@ -27,15 +27,7 @@ class InvoiceController extends Controller
 
         $invoices = $this->invoiceService->listInvoice($contract->id);
 
-        return $this->success(
-            'Contract Invoices',
-            InvoiceResource::collection($invoices)->additional([
-                'total' => $invoices->total(),
-                'current_page' => $invoices->currentPage(),
-                'per_page' => $invoices->perPage(),
-                'last_page' => $invoices->lastPage()
-            ])
-        );
+        return $invoices;
     }
 
     public function show(Invoice $invoice)

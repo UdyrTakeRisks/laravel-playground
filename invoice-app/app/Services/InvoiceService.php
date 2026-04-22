@@ -4,26 +4,21 @@ namespace App\Services;
 
 use App\Actions\InvoiceNumberGenerator;
 use App\DTOs\CreateInvoiceDTO;
-use App\DTOs\RecordPaymentDTO;
 use App\DTOs\UpdateInvoiceDTO;
 use App\Enums\ContractStatusEnum;
-use App\Enums\InvoiceStatusEnum;
 use App\Events\InvoiceCreatedEvent;
 use App\Exceptions\ContractNotActiveException;
-use App\Exceptions\ExceededBalanceException;
-use App\Exceptions\InsufficientBalanceException;
+use App\Http\Resources\InvoiceResource;
 use App\Interfaces\ContractRepositoryInterface;
 use App\Interfaces\InvoiceRepositoryInterface;
-use App\Interfaces\PaymentRepositoryInterface;
 use App\Jobs\InvoiceCreatedJob;
 use App\Traits\FilterTrait;
-use Event;
-use Illuminate\Pagination\LengthAwarePaginator;
+use App\Traits\HttpResponseTrait;
 use Illuminate\Support\Facades\DB;
 
 class InvoiceService
 {
-    use FilterTrait;
+    use FilterTrait, HttpResponseTrait;
     public function __construct(
         private ContractRepositoryInterface $contractRepo,
         private InvoiceRepositoryInterface $invoiceRepo,
@@ -31,16 +26,30 @@ class InvoiceService
     ) {
     }
 
-    public function listInvoice(int $contractId): LengthAwarePaginator
+    public function listInvoice(int $contractId)
     {
-        $filters = request()->only('limit', 'status', 'from_date', 'to_date');
-        $invoices = $this->invoiceRepo->getByContractId($contractId);
+        try {
+            $invoices = $this->invoiceRepo->getByContractId($contractId);
 
-        //apply pagination and filters
-        $this->applyFilters($invoices, $filters);
-        $limit = $filters['limit'] ?? 10;
+            //apply pagination and filters
+            $filters = request()->only('limit', 'status', 'from_date', 'to_date');
+            $this->applyFilters($invoices, $filters);
+            $limit = $filters['limit'] ?? 10;
 
-        return $invoices->paginate($limit);
+            $invoices = $invoices->paginate($limit);
+
+            return $this->success(
+                'Contract Invoices',
+                InvoiceResource::collection($invoices)->additional([
+                    'total' => $invoices->total(),
+                    'current_page' => $invoices->currentPage(),
+                    'per_page' => $invoices->perPage(),
+                    'last_page' => $invoices->lastPage()
+                ])
+            );
+        } catch (\Exception $e) {
+            return $this->serverError('Failed to retrieve invoices');
+        }
     }
 
     public function getDetailedInvoice(int $invoiceId)
